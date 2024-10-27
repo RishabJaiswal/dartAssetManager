@@ -1,29 +1,28 @@
 package com.github.rishabjaiswal.dartassetmanager.toolWindow
 
 
-
-import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtilCore
-import com.intellij.util.ui.JBUI
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
-import java.awt.*
-import javax.swing.*
-import java.io.File
-import kotlinx.coroutines.*
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.ui.PaintingParent
-import com.intellij.ui.SearchTextField
 import com.intellij.ui.components.panels.Wrapper
+import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
+import kotlinx.coroutines.*
+import java.awt.*
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.io.File
+import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import kotlin.coroutines.CoroutineContext
 
-class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
+class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
     companion object {
         private const val IMAGE_SIZE = 60
     }
@@ -158,7 +157,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
                 }
 
                 withContext(Dispatchers.Main) {
-                   listPanel.removeAll()
+                    listPanel.removeAll()
                 }
 
                 if (filteredFiles.isEmpty()) {
@@ -223,6 +222,11 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
                     background = UIUtil.getListBackground()
                     setCursor(Cursor.getDefaultCursor())
                     repaint()
+                }
+
+                override fun mouseClicked(e: MouseEvent) {
+                    // Open image in Android Studio's editor
+                    FileEditorManager.getInstance(project).openFile(file, true)
                 }
             })
         }

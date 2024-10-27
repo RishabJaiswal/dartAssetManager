@@ -29,7 +29,7 @@ class FlutterAssetViewerToolWindowFactory : ToolWindowFactory {
 class FlutterAssetViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val contentPanel = JPanel(BorderLayout())
     private val packageComboBox = ComboBox<PackageInfo>()
-    private val imageListPanel = ImageListPanel()
+    private val imageListPanel = ImageListPanel(project)
     private val packageService = PackageService(project)
 
     init {
@@ -77,6 +77,7 @@ class FlutterAssetViewerPanel(private val project: Project) : JPanel(BorderLayou
             packageComboBox.isEnabled = false
         } else {
             packageComboBox.selectedIndex = 0
+            packages.first().directory?.let { imageListPanel.loadImagesFromPackage(it) }
         }
     }
 
