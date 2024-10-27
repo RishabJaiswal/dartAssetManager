@@ -1,98 +1,97 @@
 package com.github.rishabjaiswal.dartassetmanager.toolWindow
 
 
+
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.util.ui.JBUI
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
-import com.intellij.util.ui.UIUtil
-import kotlinx.coroutines.*
+import com.intellij.ui.components.JBScrollPane
 import java.awt.*
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
 import javax.swing.*
 import java.io.File
+import kotlinx.coroutines.*
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.ui.SearchTextField
+import com.intellij.util.ui.UIUtil
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import kotlin.coroutines.CoroutineContext
 
-
 class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
-    private val listPanel = JBPanel<JBPanel<*>>()
-    private val job = Job()
+    companion object {
+        private const val IMAGE_SIZE = 60
+    }
 
+    private val job = Job()
     override val coroutineContext: CoroutineContext
         get() = job + Dispatchers.Default
 
+    private val listPanel = JBPanel<JBPanel<*>>()
+    private val searchField = SearchTextField().apply {
+        textEditor.emptyText.text = "Search images..."
+    }
+    private val toolbarPanel = JPanel(FlowLayout(FlowLayout.LEFT))
     private var currentLoadingJob: Job? = null
+    private var allImageFiles = mutableListOf<VirtualFile>()
+    private var currentPackageDir: VirtualFile? = null
 
     init {
-        listPanel.layout = BoxLayout(listPanel, BoxLayout.Y_AXIS)
-        add(listPanel, BorderLayout.NORTH)
-        border = JBUI.Borders.empty(10)
+        setupUI()
+        setupSearch()
     }
 
     fun dispose() {
         job.cancel()
     }
 
+    private fun setupUI() {
+        // Setup toolbar with search
+        toolbarPanel.apply {
+            border = JBUI.Borders.empty(8)
+            background = UIUtil.getPanelBackground()
+            add(searchField)
+        }
+
+        // Setup list panel
+        listPanel.apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            border = JBUI.Borders.empty(10)
+        }
+
+        // Add components to main panel
+        add(toolbarPanel, BorderLayout.NORTH)
+        add(JBScrollPane(listPanel), BorderLayout.CENTER)
+    }
+
+    private fun setupSearch() {
+        searchField.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent) = filterImages()
+            override fun removeUpdate(e: DocumentEvent) = filterImages()
+            override fun changedUpdate(e: DocumentEvent) = filterImages()
+        })
+    }
+
     fun loadImagesFromPackage(directory: VirtualFile) {
+        currentPackageDir = directory
+
         // Cancel any ongoing loading
         currentLoadingJob?.cancel()
 
         // Clear existing content
         listPanel.removeAll()
+        allImageFiles.clear()
         showLoadingIndicator()
 
         // Start new loading job
         currentLoadingJob = launch {
             try {
-                val imageFiles = collectImageFiles(directory)
-
-                if (imageFiles.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        listPanel.removeAll()
-                        displayNoImagesMessage()
-                        listPanel.revalidate()
-                        listPanel.repaint()
-                    }
-                    return@launch
-                }
-
-                // Process images in batches
-                imageFiles.chunked(5).forEach { batch ->
-                    val deferreds = batch.map { file ->
-                        async(Dispatchers.IO) {
-                            val icon = ImageUtils.loadImage(file, 200, 200)
-                            file to icon
-                        }
-                    }
-
-                    // Wait for the batch to complete and update UI
-                    val results = deferreds.awaitAll()
-
-                    withContext(Dispatchers.Main) {
-                        if (!isActive) return@withContext // Check if still active
-
-                        results.forEach { (file, icon) ->
-                            addImageToList(file, icon, directory)
-                            // Add separator except for last item
-                            if (file != imageFiles.last()) {
-                                listPanel.add(JSeparator())
-                                listPanel.add(Box.createVerticalStrut(10))
-                            }
-                        }
-                        listPanel.revalidate()
-                        listPanel.repaint()
-                    }
-                }
-
-                // Remove loading indicator after all images are loaded
-                withContext(Dispatchers.Main) {
-                    removeLoadingIndicator()
-                }
-
+                allImageFiles = collectImageFiles(directory).toMutableList()
+                filterImages()
             } catch (e: CancellationException) {
-                // Handle cancellation
                 withContext(Dispatchers.Main) {
                     listPanel.removeAll()
                     listPanel.revalidate()
@@ -119,47 +118,69 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
             files.sortedBy { it.name }
         }
 
-    private fun showLoadingIndicator() {
-        val loadingLabel = JBLabel("Loading images...", SwingConstants.CENTER)
-        loadingLabel.name = "loadingIndicator"
-        listPanel.add(loadingLabel)
-        listPanel.revalidate()
-        listPanel.repaint()
-    }
+    private fun filterImages() {
+        val searchText = searchField.text.trim().lowercase()
 
-    private fun removeLoadingIndicator() {
-        listPanel.components.firstOrNull { it.name == "loadingIndicator" }?.let {
-            listPanel.remove(it)
-            listPanel.revalidate()
-            listPanel.repaint()
+        listPanel.removeAll()
+
+        launch {
+            try {
+                val filteredFiles = if (searchText.isEmpty()) {
+                    allImageFiles
+                } else {
+                    allImageFiles.filter { file ->
+                        file.name.lowercase().contains(searchText) ||
+                                getRelativePath(file, currentPackageDir!!).lowercase().contains(searchText)
+                    }
+                }
+
+                if (filteredFiles.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        showNoImagesMessage(if (searchText.isEmpty()) "No images found" else "No matching images found")
+                    }
+                    return@launch
+                }
+
+                // Process images in batches
+                filteredFiles.chunked(5).forEach { batch ->
+                    val deferreds = batch.map { file ->
+                        async(Dispatchers.IO) {
+                            val icon = ImageUtils.loadImage(file, IMAGE_SIZE, IMAGE_SIZE)
+                            file to icon
+                        }
+                    }
+
+                    val results = deferreds.awaitAll()
+
+                    withContext(Dispatchers.Main) {
+                        if (!isActive) return@withContext
+
+                        results.forEach { (file, icon) ->
+                            addImageToList(file, icon, currentPackageDir!!)
+                            if (file != filteredFiles.last()) {
+                                listPanel.add(JSeparator())
+                            }
+                        }
+                        listPanel.revalidate()
+                        listPanel.repaint()
+                    }
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    showError("Error filtering images: ${e.message}")
+                }
+            }
         }
     }
 
-    private fun showError(message: String) {
-        listPanel.removeAll()
-        listPanel.add(JBLabel(message, SwingConstants.CENTER))
-        listPanel.revalidate()
-        listPanel.repaint()
-    }
-
-    private fun isExcludedPath(filePath: String): Boolean {
-        return Constants.EXCLUDED_PATHS.any { filePath.contains(it) }
-    }
-
-    private fun displayNoImagesMessage() {
-        val messageLabel = JBLabel("No images found in this package", SwingConstants.CENTER)
-        messageLabel.border = JBUI.Borders.empty(20)
-        listPanel.add(messageLabel)
-    }
-
     private fun addImageToList(file: VirtualFile, icon: Icon, packageDir: VirtualFile) {
-        // Create item panel with hover support
         val itemPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
-            border = JBUI.Borders.empty(10)
+            border = JBUI.Borders.empty(8)
             background = UIUtil.getListBackground()
-            isOpaque = true  // Required for background colors to work
+            isOpaque = true
 
-            // Add hover effect
             addMouseListener(object : MouseAdapter() {
                 override fun mouseEntered(e: MouseEvent) {
                     background = UIUtil.getListSelectionBackground(false)
@@ -175,10 +196,12 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
             })
         }
 
-        // Image panel with subtle border
+        // Image label
         val imageLabel = JLabel(icon).apply {
-            preferredSize = Dimension(60, 60)
-            border = JBUI.Borders.customLine(Color.DARK_GRAY, 1)
+            preferredSize = Dimension(IMAGE_SIZE, IMAGE_SIZE)
+            minimumSize = Dimension(IMAGE_SIZE, IMAGE_SIZE)
+            maximumSize = Dimension(IMAGE_SIZE, IMAGE_SIZE)
+            border = JBUI.Borders.customLine(Color.GRAY, 1)
             background = UIUtil.getPanelBackground()
             isOpaque = true
         }
@@ -186,8 +209,9 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
         // Description panel
         val descriptionPanel = JBPanel<JBPanel<*>>().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = JBUI.Borders.empty(5, 15, 5, 5)
-            isOpaque = false  // Make it transparent to show parent's hover effect
+            border = JBUI.Borders.empty(2, 15, 2, 5)
+            isOpaque = false
+            alignmentY = Component.CENTER_ALIGNMENT
         }
 
         // File name label
@@ -204,15 +228,46 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
             alignmentX = Component.LEFT_ALIGNMENT
         }
 
-        // Assemble the components
         descriptionPanel.add(nameLabel)
-        descriptionPanel.add(Box.createVerticalStrut(5))
+        descriptionPanel.add(Box.createVerticalStrut(4))
         descriptionPanel.add(pathLabel)
 
-        itemPanel.add(imageLabel, BorderLayout.WEST)
+        val imagePanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
+            isOpaque = false
+            add(imageLabel, BorderLayout.CENTER)
+        }
+
+        itemPanel.add(imagePanel, BorderLayout.WEST)
         itemPanel.add(descriptionPanel, BorderLayout.CENTER)
 
         listPanel.add(itemPanel)
+    }
+
+    private fun showLoadingIndicator() {
+        val loadingLabel = JBLabel("Loading images...", SwingConstants.CENTER)
+        loadingLabel.name = "loadingIndicator"
+        listPanel.add(loadingLabel)
+        listPanel.revalidate()
+        listPanel.repaint()
+    }
+
+    private fun showNoImagesMessage(message: String) {
+        val messageLabel = JBLabel(message, SwingConstants.CENTER)
+        messageLabel.border = JBUI.Borders.empty(20)
+        listPanel.add(messageLabel)
+        listPanel.revalidate()
+        listPanel.repaint()
+    }
+
+    private fun showError(message: String) {
+        listPanel.removeAll()
+        listPanel.add(JBLabel(message, SwingConstants.CENTER))
+        listPanel.revalidate()
+        listPanel.repaint()
+    }
+
+    private fun isExcludedPath(filePath: String): Boolean {
+        return Constants.EXCLUDED_PATHS.any { filePath.contains(it) }
     }
 
     private fun getRelativePath(file: VirtualFile, packageDir: VirtualFile): String {
