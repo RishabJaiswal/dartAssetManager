@@ -6,7 +6,11 @@
 ### Added
 - Future features will be listed here
 
-## [0.2.0] - 2024-01-28
+## [0.2.1] - 2024-10-29
+### Changed
+- Set min IDE supported version to 231
+
+## [0.2.0] - 2024-10-28
 ### Added
 - Image preview functionality
     - Click any image to open in IDE viewer
@@ -34,7 +38,7 @@
 - List item height consistency
 - Image scaling and aspect ratio handling
 
-## [0.1.0] - 2024-01-27
+## [0.1.0] - 2024-10-27
 ### Added
 - Initial plugin release
 - Basic Features:

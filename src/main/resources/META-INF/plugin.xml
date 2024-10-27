@@ -3,21 +3,6 @@
     <id>com.github.rishabjaiswal.dartassetmanager</id>
     <name>Flutter Asset Viewer</name>
     <vendor email="shivam.jaiswal175@gmail.com"> rishab.jaiswal </vendor>
-    <version>0.2.0</version>
-
-
-    <change-notes><![CDATA[
-        v0.2.0:
-        - Added image preview functionality
-        - Click on any image to open in IDE viewer
-        - Fixed initial package loading issue
-
-        v0.1.0:
-        - Image listing functionality
-        - Real-time search
-        - Hover effects
-        - Initial release
-    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <resource-bundle>messages.MyBundle</resource-bundle>
