@@ -63,8 +63,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()) {
             itemPanel.border = JBUI.Borders.empty(10)
 
             // Create and configure image panel
-            val imageIcon = ImageIcon(file.path)
-            val scaledIcon = ImageUtils.scaleImage(imageIcon, 200, 200)
+            val scaledIcon = ImageUtils.loadImage(file, 200, 200)
             val imageLabel = JLabel(scaledIcon)
             imageLabel.preferredSize = Dimension(200, 200)
             imageLabel.border = JBUI.Borders.empty(5)

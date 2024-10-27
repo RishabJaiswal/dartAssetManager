@@ -13,8 +13,8 @@ coroutines = "1.9.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-snakeYaml = { group = "org.yaml", name = "snakeyaml", version.ref="snakeYaml" }
-coroutines  = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines"}
+snakeYaml = { group = "org.yaml", name = "snakeyaml", version.ref = "snakeYaml" }
+coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }

@@ -1,10 +1,14 @@
 package com.github.rishabjaiswal.dartassetmanager.toolWindow
 
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.ui.JBUI
-import javax.swing.*
-import java.awt.*
+import java.awt.BorderLayout
+import java.awt.GridLayout
+import javax.swing.Icon
+import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.SwingConstants
 
 class ImageGridPanel : JPanel(GridLayout(0, 4, 10, 10)) {
 
@@ -44,8 +48,7 @@ class ImageGridPanel : JPanel(GridLayout(0, 4, 10, 10)) {
 
     private fun displayImage(file: VirtualFile) {
         try {
-            val imageIcon = ImageIcon(file.path)
-            val scaledIcon = ImageUtils.scaleImage(imageIcon, 200, 200)
+            val scaledIcon = ImageUtils.loadImage(file, 200, 200)
             val label = createImageLabel(scaledIcon, file)
 
             val wrapper = JPanel(BorderLayout())
@@ -58,7 +61,7 @@ class ImageGridPanel : JPanel(GridLayout(0, 4, 10, 10)) {
         }
     }
 
-    private fun createImageLabel(icon: ImageIcon, file: VirtualFile): JLabel {
+    private fun createImageLabel(icon: Icon, file: VirtualFile): JLabel {
         return JLabel(icon).apply {
             horizontalAlignment = SwingConstants.CENTER
             text = file.name
