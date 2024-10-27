@@ -13,7 +13,9 @@ import javax.swing.*
 import java.io.File
 import kotlinx.coroutines.*
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.ui.PaintingParent
 import com.intellij.ui.SearchTextField
+import com.intellij.ui.components.panels.Wrapper
 import com.intellij.util.ui.UIUtil
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -36,6 +38,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
     }
     private val toolbarPanel = JPanel(FlowLayout(FlowLayout.LEFT))
     private var currentLoadingJob: Job? = null
+    private var searchJob: Job? = null
     private var allImageFiles = mutableListOf<VirtualFile>()
     private var currentPackageDir: VirtualFile? = null
 
@@ -45,6 +48,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
     }
 
     fun dispose() {
+        searchJob?.cancel()
         job.cancel()
     }
 
@@ -56,22 +60,27 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
             add(searchField)
         }
 
-        // Setup list panel
+        // Setup list panel with Wrapper to prevent stretching
         listPanel.apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = JBUI.Borders.empty(10)
         }
 
+        // Create a wrapper panel that aligns to the top
+        val wrapperPanel = JPanel(BorderLayout()).apply {
+            add(listPanel, BorderLayout.NORTH)  // Add listPanel to the NORTH to prevent stretching
+        }
+
         // Add components to main panel
         add(toolbarPanel, BorderLayout.NORTH)
-        add(JBScrollPane(listPanel), BorderLayout.CENTER)
+        add(JBScrollPane(wrapperPanel), BorderLayout.CENTER)
     }
 
     private fun setupSearch() {
         searchField.addDocumentListener(object : DocumentListener {
-            override fun insertUpdate(e: DocumentEvent) = filterImages()
-            override fun removeUpdate(e: DocumentEvent) = filterImages()
-            override fun changedUpdate(e: DocumentEvent) = filterImages()
+            override fun insertUpdate(e: DocumentEvent) = debounceSearch()
+            override fun removeUpdate(e: DocumentEvent) = debounceSearch()
+            override fun changedUpdate(e: DocumentEvent) = debounceSearch()
         })
     }
 
@@ -118,13 +127,27 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
             files.sortedBy { it.name }
         }
 
+    private fun debounceSearch() {
+        searchJob?.cancel() // Cancel any ongoing search
+        searchJob = launch {
+            delay(500) // Wait for 500ms
+            filterImages()
+        }
+    }
+
     private fun filterImages() {
         val searchText = searchField.text.trim().lowercase()
-
         listPanel.removeAll()
 
         launch {
             try {
+                // Show loading state immediately for better UX
+                withContext(Dispatchers.Main) {
+                    if (searchText.isNotEmpty()) {
+                        showLoadingIndicator()
+                    }
+                }
+
                 val filteredFiles = if (searchText.isEmpty()) {
                     allImageFiles
                 } else {
@@ -132,6 +155,10 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
                         file.name.lowercase().contains(searchText) ||
                                 getRelativePath(file, currentPackageDir!!).lowercase().contains(searchText)
                     }
+                }
+
+                withContext(Dispatchers.Main) {
+                   listPanel.removeAll()
                 }
 
                 if (filteredFiles.isEmpty()) {
@@ -156,9 +183,13 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
                         if (!isActive) return@withContext
 
                         results.forEach { (file, icon) ->
-                            addImageToList(file, icon, currentPackageDir!!)
+                            // Wrap each item in a Wrapper to maintain its natural height
+                            val itemWrapper = Wrapper(addImageToList(file, icon, currentPackageDir!!))
+                            listPanel.add(itemWrapper)
                             if (file != filteredFiles.last()) {
+                                listPanel.add(Box.createVerticalStrut(1))
                                 listPanel.add(JSeparator())
+                                listPanel.add(Box.createVerticalStrut(1))
                             }
                         }
                         listPanel.revalidate()
@@ -175,7 +206,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
         }
     }
 
-    private fun addImageToList(file: VirtualFile, icon: Icon, packageDir: VirtualFile) {
+    private fun addImageToList(file: VirtualFile, icon: Icon, packageDir: VirtualFile): JPanel {
         val itemPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
             border = JBUI.Borders.empty(8)
             background = UIUtil.getListBackground()
@@ -201,7 +232,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
             preferredSize = Dimension(IMAGE_SIZE, IMAGE_SIZE)
             minimumSize = Dimension(IMAGE_SIZE, IMAGE_SIZE)
             maximumSize = Dimension(IMAGE_SIZE, IMAGE_SIZE)
-            border = JBUI.Borders.customLine(Color.GRAY, 1)
+            border = JBUI.Borders.customLine(UIUtil.TRANSPARENT_COLOR, 1)
             background = UIUtil.getPanelBackground()
             isOpaque = true
         }
@@ -240,7 +271,7 @@ class ImageListPanel : JBPanel<ImageListPanel>(BorderLayout()), CoroutineScope {
         itemPanel.add(imagePanel, BorderLayout.WEST)
         itemPanel.add(descriptionPanel, BorderLayout.CENTER)
 
-        listPanel.add(itemPanel)
+        return itemPanel
     }
 
     private fun showLoadingIndicator() {
