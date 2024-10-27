@@ -1,5 +1,6 @@
 package com.github.rishabjaiswal.dartassetmanager.toolWindow
 
+import com.github.rishabjaiswal.dartassetmanager.toolWindow.Constants.EXCLUDED_PATHS
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
@@ -8,7 +9,6 @@ import org.yaml.snakeyaml.Yaml
 
 class PackageService(private val project: Project) {
 
-    val EXCLUDED_PATHS = listOf("/build/", "/ios/", "/.plugin_symlinks/")
 
     fun loadFlutterPackages(): List<PackageInfo> {
         val packages = mutableListOf<PackageInfo>()
