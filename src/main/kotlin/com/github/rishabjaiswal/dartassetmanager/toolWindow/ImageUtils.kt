@@ -2,7 +2,7 @@ package com.github.rishabjaiswal.dartassetmanager.toolWindow
 
 
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.util.SVGLoader
+import com.intellij.util.ImageLoader
 import com.intellij.util.ui.JBImageIcon
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
@@ -10,6 +10,7 @@ import java.awt.Dimension
 import java.awt.Image
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
+import java.net.URL
 import javax.swing.Icon
 import javax.swing.ImageIcon
 
@@ -24,9 +25,9 @@ object ImageUtils {
 
     private fun loadSvgIcon(file: VirtualFile, targetWidth: Int, targetHeight: Int): Icon {
         try {
-            // Load SVG using SVGLoader
-            val svg = SVGLoader.load(file.inputStream, 1.0f)
-            return ImageIcon(svg)
+            // Use ImageLoader for SVG files
+            val image = ImageLoader.loadFromUrl(URL(file.url))
+            return image?.let { JBImageIcon(it) } ?: createErrorIcon(targetWidth, targetHeight)
         } catch (e: Exception) {
             e.printStackTrace()
             return createErrorIcon(targetWidth, targetHeight)

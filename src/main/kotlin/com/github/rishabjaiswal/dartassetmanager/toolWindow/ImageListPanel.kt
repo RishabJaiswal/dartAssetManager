@@ -182,7 +182,7 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
                     val matchesBundled = if (bundledAssetsCheckbox.isSelected) {
                         currentPackageDir?.let { packageDir ->
                             val relativePath = getRelativePath(file, packageDir)
-                            currentPackage.bundledAssets.isAssetBundled(relativePath,)
+                            currentPackage.bundledAssets.isAssetBundled(relativePath)
                         } ?: false
                     } else {
                         true

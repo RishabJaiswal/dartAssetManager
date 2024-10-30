@@ -50,15 +50,4 @@ class PackageService(private val project: Project) {
             return null
         }
     }
-
-    fun isAssetBundled(relativePath: String, bundledAssets: List<String>): Boolean {
-        return bundledAssets.any { pattern ->
-            when {
-                // Directory pattern (ends with /)
-                pattern.endsWith("/") -> relativePath.startsWith(pattern)
-                // Specific file pattern
-                else -> relativePath == pattern || relativePath.startsWith("$pattern/")
-            }
-        }
-    }
 }

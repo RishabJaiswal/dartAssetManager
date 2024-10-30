@@ -16,6 +16,7 @@
 ### Fixed
 - Fixed when loader was not being removed for a search
 - Fix layout where the checkbox was overflowing the toolbar
+- Remove use of `SvgLoader`, which is marked as internal API
 
 ## [0.2.1] - 2024-10-29
 ### Changed
