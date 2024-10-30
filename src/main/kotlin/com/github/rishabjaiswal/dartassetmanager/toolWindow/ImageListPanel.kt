@@ -60,24 +60,29 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
     private fun setupUI() {
         // Setup toolbar with search
         toolbarPanel.apply {
+            layout = BorderLayout()  // Change to BorderLayout for better control
             border = JBUI.Borders.empty(8)
             background = UIUtil.getPanelBackground()
 
-            // Create a left panel for search
-            val leftPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+            // Create a container panel for search field and checkbox
+            val containerPanel = JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.X_AXIS)
                 isOpaque = false
+
+                // Add search field
                 add(searchField)
-            }
 
-            // Create a right panel for checkbox
-            val rightPanel = JPanel(FlowLayout(FlowLayout.LEFT, 10, 0)).apply {
-                isOpaque = false
+                // Add some space between search and checkbox
+                add(Box.createHorizontalStrut(10))
+
+                // Add checkbox
                 add(bundledAssetsCheckbox)
+
+                // Add remaining space
+                add(Box.createHorizontalGlue())
             }
 
-            // Add both panels to toolbar
-            add(leftPanel)
-            add(rightPanel)
+            add(containerPanel, BorderLayout.CENTER)
         }
 
         // Setup list panel with Wrapper to prevent stretching
@@ -186,10 +191,10 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
                     return@filter matchesSearch && matchesBundled
                 }
 
+                // hide loader indicator
+                listPanel.removeAll()
 
                 if (filteredFiles.isEmpty()) {
-                    listPanel.removeAll()
-
                     withContext(Dispatchers.Main) {
                         showNoImagesMessage(when {
                             searchText.isEmpty() && bundledAssetsCheckbox.isSelected ->

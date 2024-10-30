@@ -13,6 +13,10 @@
 ### Changed
 - Change the title of the plugin window tab
 
+### Fixed
+- Fixed when loader was not being removed for a search
+- Fix layout where the checkbox was overflowing the toolbar
+
 ## [0.2.1] - 2024-10-29
 ### Changed
 - Set min IDE supported version to 231
