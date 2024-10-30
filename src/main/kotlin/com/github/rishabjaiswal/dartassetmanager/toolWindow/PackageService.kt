@@ -9,7 +9,6 @@ import org.yaml.snakeyaml.Yaml
 
 class PackageService(private val project: Project) {
 
-
     fun loadFlutterPackages(): List<PackageInfo> {
         val packages = mutableListOf<PackageInfo>()
 
@@ -36,13 +35,30 @@ class PackageService(private val project: Project) {
             val pubspecMap = yaml.load<Map<String, Any>>(pubspecContent)
             val packageName = pubspecMap["name"] as? String ?: return null
 
+            // Extract bundled assets from pubspec.yaml
+            val flutterConfig = pubspecMap["flutter"] as? Map<*, *>
+            val bundledAssets = (flutterConfig?.get("assets") as? List<*>)?.mapNotNull { it as? String }
+                ?: emptyList()
+
             return PackageInfo(
                 name = packageName,
                 directory = pubspecFile.parent,
-                pubspecFile = pubspecFile
+                pubspecFile = pubspecFile,
+                bundledAssets = PubspecAssets(bundledAssets)
             )
         } catch (e: Exception) {
             return null
+        }
+    }
+
+    fun isAssetBundled(relativePath: String, bundledAssets: List<String>): Boolean {
+        return bundledAssets.any { pattern ->
+            when {
+                // Directory pattern (ends with /)
+                pattern.endsWith("/") -> relativePath.startsWith(pattern)
+                // Specific file pattern
+                else -> relativePath == pattern || relativePath.startsWith("$pattern/")
+            }
         }
     }
 }

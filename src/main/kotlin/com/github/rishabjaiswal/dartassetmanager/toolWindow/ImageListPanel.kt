@@ -6,6 +6,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.SearchTextField
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
@@ -35,11 +36,16 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
     private val searchField = SearchTextField().apply {
         textEditor.emptyText.text = "Search images..."
     }
+    private val bundledAssetsCheckbox = JBCheckBox("Show only bundled assets").apply {
+        isSelected = false
+        addItemListener { _ -> filterImages() }
+    }
     private val toolbarPanel = JPanel(FlowLayout(FlowLayout.LEFT))
     private var currentLoadingJob: Job? = null
     private var searchJob: Job? = null
     private var allImageFiles = mutableListOf<VirtualFile>()
     private var currentPackageDir: VirtualFile? = null
+    private lateinit  var currentPackage: PackageInfo
 
     init {
         setupUI()
@@ -56,7 +62,22 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
         toolbarPanel.apply {
             border = JBUI.Borders.empty(8)
             background = UIUtil.getPanelBackground()
-            add(searchField)
+
+            // Create a left panel for search
+            val leftPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+                isOpaque = false
+                add(searchField)
+            }
+
+            // Create a right panel for checkbox
+            val rightPanel = JPanel(FlowLayout(FlowLayout.LEFT, 10, 0)).apply {
+                isOpaque = false
+                add(bundledAssetsCheckbox)
+            }
+
+            // Add both panels to toolbar
+            add(leftPanel)
+            add(rightPanel)
         }
 
         // Setup list panel with Wrapper to prevent stretching
@@ -83,8 +104,9 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
         })
     }
 
-    fun loadImagesFromPackage(directory: VirtualFile) {
-        currentPackageDir = directory
+    fun loadImagesFromPackage(selectedPackage: PackageInfo) {
+        currentPackage = selectedPackage
+        currentPackageDir = selectedPackage.directory!!
 
         // Cancel any ongoing loading
         currentLoadingJob?.cancel()
@@ -97,7 +119,7 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
         // Start new loading job
         currentLoadingJob = launch {
             try {
-                allImageFiles = collectImageFiles(directory).toMutableList()
+                allImageFiles = collectImageFiles(currentPackageDir!!).toMutableList()
                 filterImages()
             } catch (e: CancellationException) {
                 withContext(Dispatchers.Main) {
@@ -147,22 +169,34 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
                     }
                 }
 
-                val filteredFiles = if (searchText.isEmpty()) {
-                    allImageFiles
-                } else {
-                    allImageFiles.filter { file ->
-                        file.name.lowercase().contains(searchText) ||
-                                getRelativePath(file, currentPackageDir!!).lowercase().contains(searchText)
+                val filteredFiles = allImageFiles.filter { file ->
+                    val matchesSearch = searchText.isEmpty() ||
+                            file.name.lowercase().contains(searchText) ||
+                            getRelativePath(file, currentPackageDir!!).lowercase().contains(searchText)
+
+                    val matchesBundled = if (bundledAssetsCheckbox.isSelected) {
+                        currentPackageDir?.let { packageDir ->
+                            val relativePath = getRelativePath(file, packageDir)
+                            currentPackage.bundledAssets.isAssetBundled(relativePath,)
+                        } ?: false
+                    } else {
+                        true
                     }
+
+                    return@filter matchesSearch && matchesBundled
                 }
 
-                withContext(Dispatchers.Main) {
-                    listPanel.removeAll()
-                }
 
                 if (filteredFiles.isEmpty()) {
+                    listPanel.removeAll()
+
                     withContext(Dispatchers.Main) {
-                        showNoImagesMessage(if (searchText.isEmpty()) "No images found" else "No matching images found")
+                        showNoImagesMessage(when {
+                            searchText.isEmpty() && bundledAssetsCheckbox.isSelected ->
+                                "No bundled images found in pubspec.yaml"
+                            searchText.isEmpty() -> "No images found"
+                            else -> "No matching images found"
+                        })
                     }
                     return@launch
                 }

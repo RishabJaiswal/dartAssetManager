@@ -10,7 +10,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow
                 factoryClass="com.github.rishabjaiswal.dartassetmanager.toolWindow.FlutterAssetViewerToolWindowFactory"
-                id="FlutterAssetViewerWindow"/>
+                id="Flutter assets viewer"/>
     </extensions>
 
     <applicationListeners>

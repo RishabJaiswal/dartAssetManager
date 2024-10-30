@@ -6,6 +6,13 @@
 ### Added
 - Future features will be listed here
 
+## [0.3.0] - 2024-10-30
+### Added
+- Add a checkbox to show only images bundled with flutter package
+
+### Changed
+- Change the title of the plugin window tab
+
 ## [0.2.1] - 2024-10-29
 ### Changed
 - Set min IDE supported version to 231

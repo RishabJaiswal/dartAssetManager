@@ -19,7 +19,7 @@ class FlutterAssetViewerToolWindowFactory : ToolWindowFactory {
         val contentFactory = ContentFactory.getInstance()
         val assetViewerContent = contentFactory.createContent(
             FlutterAssetViewerPanel(project),
-            "Asset Viewer",
+            "Images",
             false
         )
         toolWindow.contentManager.addContent(assetViewerContent)
@@ -29,8 +29,8 @@ class FlutterAssetViewerToolWindowFactory : ToolWindowFactory {
 class FlutterAssetViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val contentPanel = JPanel(BorderLayout())
     private val packageComboBox = ComboBox<PackageInfo>()
-    private val imageListPanel = ImageListPanel(project)
     private val packageService = PackageService(project)
+    private val imageListPanel = ImageListPanel(project)
 
     init {
         setupUI()
@@ -73,17 +73,19 @@ class FlutterAssetViewerPanel(private val project: Project) : JPanel(BorderLayou
         packageComboBox.model = model
 
         if (packages.isEmpty()) {
-            model.addElement(PackageInfo("No packages found", null, null))
+            model.addElement(
+                PackageInfo("No packages found", null, null, PubspecAssets())
+            )
             packageComboBox.isEnabled = false
         } else {
             packageComboBox.selectedIndex = 0
-            packages.first().directory?.let { imageListPanel.loadImagesFromPackage(it) }
+            packages.first().let { imageListPanel.loadImagesFromPackage(it) }
         }
     }
 
     private fun updateImageDisplay(packageInfo: PackageInfo) {
         packageInfo.directory?.let {
-            imageListPanel.loadImagesFromPackage(it)
+            imageListPanel.loadImagesFromPackage(packageInfo)
         } ?: run {
             imageListPanel.removeAll()
             val messageLabel = JLabel("No packages available", SwingConstants.CENTER)
