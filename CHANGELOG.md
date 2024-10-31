@@ -6,6 +6,13 @@
 ### Added
 - Future features will be listed here
 
+## [0.4.0] - 2024-10-30
+### Added
+- Added a logo for the plugin
+
+### Changed
+- Added support for all future Idea IDE versions
+
 ## [0.3.0] - 2024-10-30
 ### Added
 - Add a checkbox to show only images bundled with flutter package
