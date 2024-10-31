@@ -1,6 +1,7 @@
 package com.github.rishabjaiswal.dartassetmanager.toolWindow
 
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtilCore
@@ -45,7 +46,7 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
     private var searchJob: Job? = null
     private var allImageFiles = mutableListOf<VirtualFile>()
     private var currentPackageDir: VirtualFile? = null
-    private lateinit  var currentPackage: PackageInfo
+    private lateinit var currentPackage: PackageInfo
 
     init {
         setupUI()
@@ -58,6 +59,28 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
     }
 
     private fun setupUI() {
+
+        // Create a panel for checkbox and tooltip
+        val checkboxPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            isOpaque = false
+
+            // Add checkbox
+            add(bundledAssetsCheckbox)
+
+            // Add small space
+            add(Box.createHorizontalStrut(4))
+
+            // Add tooltip icon
+            add(JBLabel(AllIcons.General.ContextHelp).apply {
+                toolTipText =
+                    """
+                    When enabled, shows only the images that are declared in pubspec.yaml's assets section.
+                    These are the images that will be bundled with your Flutter app.
+                    """.trimIndent()
+            })
+        }
+
         // Setup toolbar with search
         toolbarPanel.apply {
             layout = BorderLayout()  // Change to BorderLayout for better control
@@ -76,7 +99,7 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
                 add(Box.createHorizontalStrut(10))
 
                 // Add checkbox
-                add(bundledAssetsCheckbox)
+                add(checkboxPanel)
 
                 // Add remaining space
                 add(Box.createHorizontalGlue())
@@ -196,12 +219,15 @@ class ImageListPanel(private val project: Project) : JBPanel<ImageListPanel>(Bor
 
                 if (filteredFiles.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        showNoImagesMessage(when {
-                            searchText.isEmpty() && bundledAssetsCheckbox.isSelected ->
-                                "No bundled images found in pubspec.yaml"
-                            searchText.isEmpty() -> "No images found"
-                            else -> "No matching images found"
-                        })
+                        showNoImagesMessage(
+                            when {
+                                searchText.isEmpty() && bundledAssetsCheckbox.isSelected ->
+                                    "No bundled images found in pubspec.yaml"
+
+                                searchText.isEmpty() -> "No images found"
+                                else -> "No matching images found"
+                            }
+                        )
                     }
                     return@launch
                 }

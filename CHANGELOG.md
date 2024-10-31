@@ -9,6 +9,7 @@
 ## [0.4.0] - 2024-10-30
 ### Added
 - Added a logo for the plugin
+- Added a tooltip message for the bundled assets checkbox in the toolbar
 
 ### Changed
 - Added support for all future Idea IDE versions
