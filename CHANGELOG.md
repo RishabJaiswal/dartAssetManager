@@ -14,6 +14,9 @@
 ### Changed
 - Added support for all future Idea IDE versions
 
+### Fixed
+- Fixed version support range for the plugin
+
 ## [0.3.0] - 2024-10-30
 ### Added
 - Add a checkbox to show only images bundled with flutter package
